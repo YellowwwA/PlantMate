@@ -37,3 +37,32 @@ def get_user_photos(user_id: int):
     conn.close()
     
     return result
+
+# ✅ PUT API: 유저의 특정 사진의 위치 정보 업데이트 or 삽입
+@app.put("/user/{user_id}/photos/{pixel_id}")
+def update_photo(user_id: int, pixel_id: int, data: PixelItem):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # 🔍 해당 유저+픽셀ID 존재 여부 확인
+    cursor.execute("SELECT * FROM garden WHERE user_id = %s AND pixel_id = %s", (user_id, pixel_id))
+    exists = cursor.fetchone()
+
+    if exists:
+        # 👉 이미 존재 → placenum 업데이트
+        cursor.execute(
+            "UPDATE garden SET placenum = %s WHERE user_id = %s AND pixel_id = %s",
+            (data.placenum, user_id, pixel_id)
+        )
+    else:
+        # 👉 존재하지 않으면 새로 추가
+        cursor.execute(
+            "INSERT INTO garden (user_id, pixel_id, placenum) VALUES (%s, %s, %s)",
+            (user_id, pixel_id, data.placenum)
+        )
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return {"message": "Photo saved successfully."}
