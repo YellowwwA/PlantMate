@@ -2,8 +2,17 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
 import mysql.connector
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 또는 ["http://localhost:3000"]처럼 React 서버 주소
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ⚙️ DB 연결 함수
 def get_db_connection():
