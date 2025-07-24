@@ -52,6 +52,7 @@ class Photo(BaseModel):
     user_id: str
     placenum: int = 0
     image_url: str = ""
+    s3_key: str
 
 class PhotoListWrapper(BaseModel):
     photos: List[Photo]
@@ -66,7 +67,7 @@ def get_s3_photos(user_id: str):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute("SELECT pixel_id, user_id, s3_key FROM garden WHERE user_id = %s", (user_id,))
+    cursor.execute("SELECT pixel_id, user_id, placenum, s3_key FROM garden WHERE user_id = %s", (user_id,))
     records = cursor.fetchall()
 
     result = []
@@ -86,7 +87,8 @@ def get_s3_photos(user_id: str):
             result.append({
                 "pixel_id": r["pixel_id"],
                 "user_id": str(r["user_id"]),
-                "placenum": 0,
+                "placenum": r.get("placenum", 0),
+                "s3_key": s3_key,  # ✅ 원래 키도 같이 반환
                 "image_url": presigned_url
             })
 
@@ -97,6 +99,7 @@ def get_s3_photos(user_id: str):
     cursor.close()
     conn.close()
     return result
+
 
 # ✅ 2. 특정 유저의 배치 데이터 조회
 @app.get("/user/{user_id}/photos", response_model=List[PixelItem])

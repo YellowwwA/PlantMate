@@ -1,37 +1,26 @@
-// 포트 띄우는 서버
-var express = require("express");
-const path = require('path');
-const compression = require("compression");  // 🔹 추가: 압축 지원
-var app = express();
+const express = require("express");
+const path = require("path");
+const compression = require("compression");
 
-// 🔹 gzip 등 압축된 파일 전송 지원 (Unity WebGL용)
+const app = express();
 app.use(compression());
 
-// 미들웨어
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
-app.use(express.static(path.join(__dirname, 'client/build')));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// 뷰 엔진 설정 (HTML 렌더링)
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'html')
-app.engine('html', require('ejs').renderFile);
+// React build 폴더 서빙
+app.use(express.static(path.join(__dirname, "client/build")));
 
-
-
-app.get("/", function (req, res) {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// 🔹 Unity WebGL 접속 페이지 (http://localhost:3000/unity)
+// Unity WebGL 경로
 app.get("/unity", function (req, res) {
-    res.sendFile(path.join(__dirname, "public", "UnityBuild", "index.html"));
+    res.sendFile(path.join(__dirname, "public", "unity", "index.html"));
 });
 
-// 라우터
-const mainRouter = require('./controllers/mainController');
-app.use('/', mainRouter)
+// React 라우팅 fallback
+app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "client/build", "index.html"));
+});
 
-app.listen(3000, function () {
-    console.log("3000 Port : Server Started~")
+app.listen(3000, () => {
+    console.log("✅ Server is running on http://localhost:3000");
 });
