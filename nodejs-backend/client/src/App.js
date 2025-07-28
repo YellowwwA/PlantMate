@@ -1,6 +1,7 @@
 import React from 'react';
 import Header from './Header';
 import "./App.css";
+import UnityPlayer from './UnityPlayer'
 
 function App() {
   return (
@@ -14,6 +15,9 @@ function App() {
         flexDirection: 'column',
       }}
     >
+      <div>
+        <UnityPlayer />
+      </div>
       {/* 🔝 고정된 Header */}
       <div style={{ flexShrink: 0 }}>
         <Header />
