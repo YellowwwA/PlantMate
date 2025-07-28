@@ -4,33 +4,75 @@ import "./App.css";
 
 function App() {
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', paddingTop: '80px' }}>
-      <Header />
+    <div
+      style={{
+        fontFamily: 'Arial, sans-serif',
+        margin: 0,
+        padding: 0,
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {/* 🔝 고정된 Header */}
+      <div style={{ flexShrink: 0 }}>
+        <Header />
+      </div>
 
-      <div style={{ maxWidth: '960px', margin: '0 auto', padding: '20px' }}>
-        <h1 style={{ textAlign: 'center' }}>🪴PlantMate🪴</h1>
+      {/* 🪴 제목 (Header 아래에 노출되도록 paddingTop 줌) */}
+      <div
+        style={{
+          flexShrink: 0,
+          textAlign: 'center',
+          paddingTop: '80px', // Header 높이만큼 여백 추가
+          paddingBottom: '10px',
+          backgroundColor: '#D9E4E4',
+        }}
+      >
+        <h1 style={{ margin: 0 }}>🪴PlantMate🪴</h1>
+      </div>
 
-        {/* ✅ 화면 크기에 따라 자동 조절 */}
-        <div style={{ border: '1px solid #ccc', height: 'calc(100vh - 250px)', marginBottom: '20px', overflow: 'hidden' }}>
-          <iframe
-            src="/unity/index.html"
-            title="Unity WebGL Game"
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              display: 'block'
-            }}
-            allowFullScreen
-          />
-        </div>
+      {/* 🕹️ Unity iframe */}
+      <div
+        style={{
+          flexGrow: 1,
+          minHeight: 0,
+          overflow: 'hidden',
+        }}
+      >
+        <iframe
+          src="/unity/index.html"
+          title="Unity WebGL Game"
+          style={{
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            display: 'block',
+          }}
+          allowFullScreen
+        />
+      </div>
 
-        <p style={{ textAlign: 'center', fontSize: '16px', color: '#555' }}>
+      {/* 🌱 설명 */}
+      <div
+        style={{
+          flexShrink: 0,
+          textAlign: 'center',
+          padding: '10px 0',
+          backgroundColor: '#D9E4E4',
+        }}
+      >
+        <p style={{ fontSize: '16px', color: '#555', margin: 0 }}>
           🌱자신이 찍은 식물로 정원을 꾸며보세요!🌱
         </p>
       </div>
     </div>
   );
+
+
+
+
+
 }
 
 export default App;

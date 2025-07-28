@@ -48,8 +48,8 @@ def get_db_connection():
 
 # ✅ 모델 정의
 class Photo(BaseModel):
-    pixel_id: int
-    user_id: str
+    plant_id: int
+    user_id: int
     placenum: int = 0
     image_url: str = ""
     s3_key: str
@@ -58,23 +58,23 @@ class PhotoListWrapper(BaseModel):
     photos: List[Photo]
 
 class PixelItem(BaseModel):
-    pixel_id: int
+    plant_id: int
     placenum: int
 
 # ✅ 1. S3 이미지 presigned URL 반환
 @app.get("/api/s3photos/{user_id}", response_model=List[Photo])
-def get_s3_photos(user_id: str):
+def get_s3_photos(user_id: int):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute("SELECT pixel_id, user_id, placenum, s3_key FROM garden WHERE user_id = %s", (user_id,))
+    cursor.execute("SELECT plant_id, user_id, placenum, s3_key FROM garden WHERE user_id = %s", (user_id,))
     records = cursor.fetchall()
 
     result = []
     for r in records:
         s3_key = r.get("s3_key")
         if not s3_key:
-            print(f"❌ 건너뜀: s3_key가 비어 있음 for pixel_id={r.get('pixel_id')}")
+            print(f"❌ 건너뜀: s3_key가 비어 있음 for plant_id={r.get('plant_id')}")
             continue
 
         try:
@@ -85,8 +85,8 @@ def get_s3_photos(user_id: str):
             )
 
             result.append({
-                "pixel_id": r["pixel_id"],
-                "user_id": str(r["user_id"]),
+                "plant_id": r["plant_id"],
+                "user_id": (r["user_id"]),
                 "placenum": r.get("placenum", 0),
                 "s3_key": s3_key,  # ✅ 원래 키도 같이 반환
                 "image_url": presigned_url
@@ -107,7 +107,7 @@ def get_user_photos(user_id: int):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute("SELECT pixel_id, placenum FROM garden WHERE user_id = %s", (user_id,))
+    cursor.execute("SELECT plant_id, placenum FROM garden WHERE user_id = %s", (user_id,))
     result = cursor.fetchall()
 
     cursor.close()
@@ -115,23 +115,23 @@ def get_user_photos(user_id: int):
     return result
 
 # ✅ 3. 특정 유저의 특정 사진 위치 저장
-@app.put("/user/{user_id}/photos/{pixel_id}")
-def update_photo(user_id: int, pixel_id: int, data: PixelItem):
+@app.put("/user/{user_id}/photos/{plant_id}")
+def update_photo(user_id: int, plant_id: int, data: PixelItem):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM garden WHERE user_id = %s AND pixel_id = %s", (user_id, pixel_id))
+    cursor.execute("SELECT * FROM garden WHERE user_id = %s AND plant_id = %s", (user_id, plant_id))
     exists = cursor.fetchone()
 
     if exists:
         cursor.execute(
-            "UPDATE garden SET placenum = %s WHERE user_id = %s AND pixel_id = %s",
-            (data.placenum, user_id, pixel_id)
+            "UPDATE garden SET placenum = %s WHERE user_id = %s AND plant_id = %s",
+            (data.placenum, user_id, plant_id)
         )
     else:
         cursor.execute(
-            "INSERT INTO garden (user_id, pixel_id, placenum) VALUES (%s, %s, %s)",
-            (user_id, pixel_id, data.placenum)
+            "INSERT INTO garden (user_id, plant_id, placenum) VALUES (%s, %s, %s)",
+            (user_id, plant_id, data.placenum)
         )
 
     conn.commit()
@@ -145,13 +145,13 @@ def save_placements(data: PhotoListWrapper):
     cursor = conn.cursor()
 
     try:
-        user_id = data.photos[0].user_id if data.photos else ""
+        user_id = data.photos[0].user_id if data.photos else None
         cursor.execute("DELETE FROM garden WHERE user_id = %s", (user_id,))
 
         for photo in data.photos:
             cursor.execute(
-                "INSERT INTO garden (pixel_id, user_id, placenum, s3_key) VALUES (%s, %s, %s, %s)",
-                (photo.pixel_id, photo.user_id, photo.placenum, photo.s3_key)  # 🔄 여기 수정됨!
+                "INSERT INTO garden (plant_id, user_id, placenum, s3_key) VALUES (%s, %s, %s, %s)",
+                (photo.plant_id, photo.user_id, photo.placenum, photo.s3_key)  # 🔄 여기 수정됨!
             )
 
         conn.commit()
