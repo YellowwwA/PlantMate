@@ -40,6 +40,7 @@ const UnityPlayer = () => {
         script.async = true;
 
         script.onload = () => {
+
             const config = {
                 dataUrl: "/unity/Build/unity.data",
                 frameworkUrl: "/unity/Build/unity.framework.js",
@@ -71,7 +72,29 @@ const UnityPlayer = () => {
         };
     }, []);
 
-    return <canvas id="unity-canvas" style={{ width: "100vw", height: "100vh" }}></canvas>;
+    // return <canvas id="unity-canvas" style={{ width: "70vw", height: "70vh" }}></canvas>;
+    return (
+        <div style={{ maxWidth: "100%", margin: "0 auto", padding: "20px" }}>
+            <div
+                style={{
+                    height: "70vh",
+                    width: "calc(70vh * (16 / 9))", // 16:9 비율 맞춘 가로
+                    border: "1px solid #ccc",
+                    margin: "0 auto", // 가운데 정렬
+                }}
+            >
+                <canvas
+                    id="unity-canvas"
+                    style={{
+                        width: "100%",
+                        height: "100%",
+                        display: "block",
+                    }}
+                ></canvas>
+            </div>
+        </div>
+    );
+
 };
 
 export default UnityPlayer;

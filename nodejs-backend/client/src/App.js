@@ -10,14 +10,11 @@ function App() {
         fontFamily: 'Arial, sans-serif',
         margin: 0,
         padding: 0,
-        height: '100vh',
+        minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
       }}
     >
-      <div>
-        <UnityPlayer />
-      </div>
       {/* 🔝 고정된 Header */}
       <div style={{ flexShrink: 0 }}>
         <Header />
@@ -34,13 +31,16 @@ function App() {
         }}
       >
         <h1 style={{ margin: 0 }}>🪴PlantMate🪴</h1>
+
+        <UnityPlayer />
+
       </div>
 
       {/* 🕹️ Unity iframe */}
-      <div
+      {/* <div
         style={{
-          flexGrow: 1,
-          minHeight: 0,
+          flexShrink: 0,
+          height: '70vh', // 원하는 만큼 조정 (ex: 60% of viewport height)
           overflow: 'hidden',
         }}
       >
@@ -55,7 +55,7 @@ function App() {
           }}
           allowFullScreen
         />
-      </div>
+      </div> */}
 
       {/* 🌱 설명 */}
       <div
@@ -72,6 +72,7 @@ function App() {
       </div>
     </div>
   );
+
 
 
 
