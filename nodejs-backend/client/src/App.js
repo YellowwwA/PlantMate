@@ -20,7 +20,7 @@ function App() {
         <Header />
       </div>
 
-      {/* 🪴 제목 (Header 아래에 노출되도록 paddingTop 줌) */}
+      {/* 🪴 제목 (Header 아래에 노출되도록 paddingTop 줌)  */}
       <div
         style={{
           flexShrink: 0,
