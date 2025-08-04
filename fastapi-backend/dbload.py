@@ -6,6 +6,9 @@ import boto3
 import os
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request
+from fastapi import Depends, HTTPException
+from utils.jwt_utils import get_user_id_from_token  # 위에서 만든 함수 import
 
 # ✅ 환경변수 로드
 load_dotenv()
@@ -30,7 +33,7 @@ app = FastAPI()
 # ✅ CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 또는 ["http://localhost:3000"]
+    allow_origins=["https://plantmate.site"],  # 또는 ["http://localhost:3000"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,9 +64,9 @@ class PixelItem(BaseModel):
     plant_id: int
     placenum: int
 
-# ✅ 1. S3 이미지 presigned URL 반환
-@app.get("/api/s3photos/{user_id}", response_model=List[Photo])
-def get_s3_photos(user_id: int):
+# ✅ JWT 기반으로 user_id 추출하여 사용
+@app.get("/api/s3photos", response_model=List[Photo])
+def get_s3_photos(request: Request, user_id: int = Depends(get_user_id_from_token)):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
@@ -86,9 +89,9 @@ def get_s3_photos(user_id: int):
 
             result.append({
                 "plant_id": r["plant_id"],
-                "user_id": (r["user_id"]),
+                "user_id": r["user_id"],
                 "placenum": r.get("placenum", 0),
-                "s3_key": s3_key,  # ✅ 원래 키도 같이 반환
+                "s3_key": s3_key,
                 "image_url": presigned_url
             })
 
@@ -140,18 +143,21 @@ def update_photo(user_id: int, plant_id: int, data: PixelItem):
     return {"message": "Photo saved successfully."}
 
 @app.post("/api/save_placements")
-def save_placements(data: PhotoListWrapper):
+def save_placements(
+    data: PhotoListWrapper,
+    request: Request,
+    user_id: int = Depends(get_user_id_from_token)
+):
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
-        user_id = data.photos[0].user_id if data.photos else None
         cursor.execute("DELETE FROM garden WHERE user_id = %s", (user_id,))
 
         for photo in data.photos:
             cursor.execute(
                 "INSERT INTO garden (plant_id, user_id, placenum, s3_key) VALUES (%s, %s, %s, %s)",
-                (photo.plant_id, photo.user_id, photo.placenum, photo.s3_key)  # 🔄 여기 수정됨!
+                (photo.plant_id, user_id, photo.placenum, photo.s3_key)
             )
 
         conn.commit()
