@@ -18,10 +18,10 @@ const Header = () => {
                 </Link>
 
                 <nav className="main-nav">
-                    <a href="http://15.168.150.125:5000/" className="nav-link active">홈</a>
+                    <a href="/home" className="nav-link active">홈</a>
                     <a href="http://15.168.150.125:5000/plantgrowthtracker" className="nav-link">식물 성장</a>
                     <a href="http://13.208.122.37:3000/" className="nav-link">정원 꾸미기</a>
-                    <a href="http://15.168.150.125:3001/" className="nav-link">식물 추천</a>
+                    <a href="/plantrecommend" className="nav-link">식물 추천</a>
                 </nav>
             </header>
         </div>

@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  fastapi:
+    build:
+      context: ./fastapi-backend
+    image: kibwa14/plantmate_fastapi:latest
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./fastapi-backend/.env
+    networks:
+      - app-network
+
+  nodejs:
+    build:
+      context: ./node-backend
+    image: kibwa14/plantmate_nodejs:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+    depends_on:
+      - fastapi
+
+networks:
+  app-network:
+    driver: bridge

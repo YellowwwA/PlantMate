@@ -1,0 +1,75 @@
+name: remote ssh command
+on: [push]
+env:
+  DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_PASSWORD }}
+  FASTAPI_DOCKER_IMAGE_NAME: kibwa14/plantmate_fastapi
+  NODEJS_DOCKER_IMAGE_NAME: kibwa14/plantmate_nodejs
+  AWS_REGION: ap-southeast-2
+  S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+  EC2_HOST: ${{secrets.HOST}}
+  EC2_USERNAME: ${{secrets.USERNAME}}
+  EC2_KEY: ${{secrets.KEY}}
+  OPENAI_API_KEY: ${{secrets.OPENAI_API_KEY}}
+  ELEVENLABS_API_KEY: ${{secrets.ELEVENLABS_API_KEY}}
+  AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
+  AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+  
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository  #푸시된 깃허브 레포지토리의 코드를 Github Action workflow에 불러오기
+        uses: actions/checkout@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_HUB_USERNAME}}
+          password: ${{ env.DOCKER_HUB_TOKEN}}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./fastapi-backend
+          file: ./fastapi-backend/Dockerfile
+          push: true
+          tags: ${{ env.FASTAPI_DOCKER_IMAGE_NAME}}:latest
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./node-backend
+          file: ./node-backend/Dockerfile
+          push: true
+          tags: ${{ env.NODEJS_DOCKER_IMAGE_NAME}}:latest
+ 
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          port: ${{ secrets.PORT }}
+          script: |
+            export OPENAI_API_KEY='${{ secrets.OPENAI_API_KEY }}'
+            export ELEVENLABS_API_KEY='${{ secrets.ELEVENLABS_API_KEY }}'
+
+            echo "--- Pulling Latest App Image ---"
+            docker pull ${{ env.FASTAPI_DOCKER_IMAGE_NAME }}:latest
+            docker pull ${{ env.NODEJS_DOCKER_IMAGE_NAME }}:latest
+
+            echo "--- Stopping and Removing Old App Container ---"
+            docker stop plantmate_fastapi || true
+            docker rm plantmate_fastapi || true
+            docker stop plantmate_nodejs || true
+            docker rm plantmate_nodejs || true
+
+            docker network create app-network || true
+
+            echo "--- Running New App Container ---"
+            docker run -d --restart always --name plantmate_fastapi -e OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" -e ELEVENLABS_API_KEY="${{ secrets.ELEVENLABS_API_KEY }}" -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" -e S3_BUCKET_NAME="${{ secrets.S3_BUCKET_NAME }}" -p 8080:8080 ${{env.FASTAPI_DOCKER_IMAGE_NAME}}:latest
+            docker run -d --restart always --name plantmate_nodejs -p 3000:3000 ${{env.NODEJS_DOCKER_IMAGE_NAME}}:latest
+
+            echo "---Cleaning up unused Docker images ---"
+            docker system prune -f
