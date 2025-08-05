@@ -25,7 +25,7 @@ function App() {
         style={{
           flexShrink: 0,
           textAlign: 'center',
-          paddingTop: '80px', // Header 높이만큼 여백 추가
+          paddingTop: '30px', // Header 높이만큼 여백 추가
           paddingBottom: '10px',
           backgroundColor: '#D9E4E4',
         }}
