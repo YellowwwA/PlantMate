@@ -11,6 +11,7 @@ jmespath==1.0.1
 mysql-connector-python==9.4.0
 pydantic==2.11.7
 pydantic_core==2.33.2
+PyJWT==2.10.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
 PyYAML==6.0.2
