@@ -109,21 +109,34 @@ img {
   margin-left: auto;
 }
 
-.nav-link {
+a.nav-link,
+button.nav-link {
   font-weight: 500;
+  font-size: 16px;
+  line-height: 1.6;
   color: var(--text-primary);
-  padding: 5px 0;
+  padding: 10px 0;
   position: relative;
   transition: var(--transition);
   background-color: #D9E4E4;
+  border: none;
+  /* 버튼 기본 테두리 제거 */
+  cursor: pointer;
+  /* 마우스 커서 포인터로 변경 */
+  font-family: inherit;
+  /* 상속받도록 해서 글꼴 통일 */
+  vertical-align: middle;
 }
 
-.nav-link:hover,
-.nav-link.active {
+a.nav-link:hover,
+button.nav-link:hover,
+a.nav-link.active,
+button.nav-link.active {
   color: var(--primary-color);
 }
 
-.nav-link.active::after {
+a.nav-link.active::after,
+button.nav-link.active::after {
   content: '';
   position: absolute;
   bottom: -5px;

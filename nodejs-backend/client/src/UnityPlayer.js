@@ -69,8 +69,8 @@ const UnityPlayer = () => {
             style={{
                 height: "65vh",
                 width: "calc(65vh * (16 / 9))", // 16:9 비율 유지
-                margin: "40px auto",
-                padding: "20px",
+                margin: "20px auto",
+                padding: "10px",
                 borderRadius: "16px",
                 boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                 backgroundColor: "#fff",

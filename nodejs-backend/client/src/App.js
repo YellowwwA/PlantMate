@@ -25,12 +25,36 @@ function App() {
         style={{
           flexShrink: 0,
           textAlign: 'center',
-          paddingTop: '30px', // Header 높이만큼 여백 추가
-          paddingBottom: '10px',
+          paddingTop: '10px', // Header 높이만큼 여백 추가
+          paddingBottom: '0px',
           backgroundColor: '#D9E4E4',
+          alignItems: 'center'
         }}
       >
-        <h1 style={{ margin: 0 }}>🪴PlantMate🪴</h1>
+        <div
+          style={{
+            display: 'inline-block',
+            padding: '5px 10px',
+            backgroundColor: '#f0f8f5',
+            borderRadius: '10px',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+            margin: '0 auto',
+          }}
+        >
+          <h1
+            style={{
+              margin: '0',
+              fontSize: '2rem',
+              fontWeight: '700',
+              color: '#4c6e5d',            // 세련된 그린
+              textAlign: 'center',
+              letterSpacing: '0.5px',
+              fontFamily: "'Apple SD Gothic Neo', sans-serif", // 일관된 글꼴
+            }}
+          >
+            <span role="img" aria-label="plant">🪴</span> 정원 꾸미기
+          </h1>
+        </div>
 
         <UnityPlayer />
 
@@ -70,7 +94,7 @@ function App() {
           🌱자신이 찍은 식물로 정원을 꾸며보세요!🌱
         </p>
       </div>
-    </div>
+    </div >
   );
 
 
