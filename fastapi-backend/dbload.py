@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 import mysql.connector
 import boto3
 import os
@@ -54,15 +54,16 @@ class Photo(BaseModel):
     plant_id: int
     user_id: int
     placenum: int = 0
-    image_url: str = ""
-    s3_key: str
+    image_url: str
+    s3_key: Optional[str] = ""   # 호환용(더이상 사용하지 않음)
 
 class PhotoListWrapper(BaseModel):
-    photos: List[Photo]
+    photos: List['SaveItem']  # 저장 시에는 s3_key 필요 없음
 
-class PixelItem(BaseModel):
+class SaveItem(BaseModel):
     plant_id: int
-    placenum: int
+    placenum: int            # 0 = 배치해제(인벤토리로)
+    s3_key: Optional[str] = None  # 들어와도 무시
 
 # ✅ JWT 기반으로 user_id 추출하여 사용
 @app.get("/api/s3photos", response_model=List[Photo])
@@ -70,77 +71,46 @@ def get_s3_photos(request: Request, user_id: int = Depends(get_user_id_from_toke
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute("SELECT plant_id, user_id, placenum, s3_key FROM garden WHERE user_id = %s", (user_id,))
-    records = cursor.fetchall()
+    sql = """
+    WITH latest_plants AS (
+      SELECT upp.user_id, upp.plant_id, MAX(upp.uploaded_at) AS last_uploaded_at
+      FROM uploaded_plant_photos upp
+      WHERE upp.user_id = %s
+      GROUP BY upp.user_id, upp.plant_id
+    )
+    SELECT
+      lp.plant_id,
+      COALESCE(g.placenum, 0) AS placenum,
+      p.pixel_image_url
+    FROM latest_plants lp
+    JOIN plants p
+      ON p.plant_id = lp.plant_id
+    LEFT JOIN garden g
+      ON g.user_id = lp.user_id
+     AND g.plant_id = lp.plant_id
+    ORDER BY placenum DESC, lp.plant_id ASC
+    """
+    cursor.execute(sql, (user_id,))
+    rows = cursor.fetchall()
 
     result = []
-    for r in records:
-        s3_key = r.get("s3_key")
-        if not s3_key:
-            print(f"❌ 건너뜀: s3_key가 비어 있음 for plant_id={r.get('plant_id')}")
-            continue
+    for r in rows:
+        url = (r.get("pixel_image_url") or "").strip()
+        if not url:
+            continue  # 이미지 링크 없으면 스킵
 
-        try:
-            presigned_url = s3_client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": S3_BUCKET, "Key": s3_key},
-                ExpiresIn=3600
-            )
-
-            result.append({
-                "plant_id": r["plant_id"],
-                "user_id": r["user_id"],
-                "placenum": r.get("placenum", 0),
-                "s3_key": s3_key,
-                "image_url": presigned_url
-            })
-
-        except Exception as e:
-            print(f"❌ URL 생성 실패 (key={s3_key}): {e}")
-            continue
+        result.append({
+            "plant_id": r["plant_id"],
+            "user_id": user_id,
+            "placenum": r.get("placenum", 0),
+            "s3_key": "",             # 호환용(더이상 사용하지 않음)
+            "image_url": url          # https 링크 그대로 반환
+        })
 
     cursor.close()
     conn.close()
     return result
 
-
-# ✅ 2. 특정 유저의 배치 데이터 조회
-@app.get("/user/{user_id}/photos", response_model=List[PixelItem])
-def get_user_photos(user_id: int):
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-
-    cursor.execute("SELECT plant_id, placenum FROM garden WHERE user_id = %s", (user_id,))
-    result = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-    return result
-
-# ✅ 3. 특정 유저의 특정 사진 위치 저장
-@app.put("/user/{user_id}/photos/{plant_id}")
-def update_photo(user_id: int, plant_id: int, data: PixelItem):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT * FROM garden WHERE user_id = %s AND plant_id = %s", (user_id, plant_id))
-    exists = cursor.fetchone()
-
-    if exists:
-        cursor.execute(
-            "UPDATE garden SET placenum = %s WHERE user_id = %s AND plant_id = %s",
-            (data.placenum, user_id, plant_id)
-        )
-    else:
-        cursor.execute(
-            "INSERT INTO garden (user_id, plant_id, placenum) VALUES (%s, %s, %s)",
-            (user_id, plant_id, data.placenum)
-        )
-
-    conn.commit()
-    cursor.close()
-    conn.close()
-    return {"message": "Photo saved successfully."}
 
 @app.post("/api/save_placements")
 def save_placements(
@@ -152,20 +122,26 @@ def save_placements(
     cursor = conn.cursor()
 
     try:
-        cursor.execute("DELETE FROM garden WHERE user_id = %s", (user_id,))
+        # 전체 삭제 후 재삽입(X)  → 들어온 항목만 정확히 반영(O)
+        upsert_sql = """
+        INSERT INTO garden (user_id, plant_id, placenum, s3_key)
+        VALUES (%s, %s, %s, '')
+        ON DUPLICATE KEY UPDATE placenum = VALUES(placenum)
+        """
+        delete_sql = "DELETE FROM garden WHERE user_id=%s AND plant_id=%s"
 
-        for photo in data.photos:
-            cursor.execute(
-                "INSERT INTO garden (plant_id, user_id, placenum, s3_key) VALUES (%s, %s, %s, %s)",
-                (photo.plant_id, user_id, photo.placenum, photo.s3_key)
-            )
+        for item in data.photos:
+            if item.placenum <= 0:
+                cursor.execute(delete_sql, (user_id, item.plant_id))
+            else:
+                cursor.execute(upsert_sql, (user_id, item.plant_id, item.placenum))
 
         conn.commit()
         return {"message": "Placement saved successfully"}
 
     except Exception as e:
         conn.rollback()
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
     finally:
         cursor.close()
