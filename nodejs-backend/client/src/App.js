@@ -86,12 +86,12 @@ function App() {
         style={{
           flexShrink: 0,
           textAlign: 'center',
-          padding: '10px 0',
+          padding: '0px 0',
           backgroundColor: '#D9E4E4',
         }}
       >
-        <p style={{ fontSize: '16px', color: '#555', margin: 0 }}>
-          🌱구경하기 버튼을 누르면 키보드 방향키로 정원을 자유롭게 둘러볼 수 있어요.🌱
+        <p style={{ fontSize: '16px', color: '#555', margin: 0, textAlign: 'center' }}>
+          🌱구경하기 버튼을 누르면 키보드 방향키로 정원을 자유롭게 둘러볼 수 있어요.🌱<br />
           꾸미기 버튼을 누르면 인벤토리에서 아이템을 드래그&드랍하여 원하는 하얀 동그라미 전시대 위에 배치할 수 있어요.
         </p>
       </div>
