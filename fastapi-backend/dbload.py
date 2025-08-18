@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 from typing import List, Optional
 import mysql.connector
@@ -9,6 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request
 from fastapi import Depends, HTTPException
 from utils.jwt_utils import get_user_id_from_token  # 위에서 만든 함수 import
+from fastapi.responses import StreamingResponse
+import httpx
+from urllib.parse import urlparse
 
 # ✅ 환경변수 로드
 load_dotenv()
@@ -29,6 +32,11 @@ s3_client = boto3.client(
 
 # ✅ FastAPI 앱 생성
 app = FastAPI()
+
+ALLOWED_IMG_HOSTS = {
+    "kibwa-14.s3.ap-southeast-2.amazonaws.com",
+    # 필요시 다른 버킷/도메인 추가
+}
 
 # ✅ CORS 설정
 app.add_middleware(

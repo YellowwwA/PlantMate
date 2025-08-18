@@ -9,12 +9,13 @@ const UnityPlayer = () => {
     const unityInstanceRef = useRef(null);
     const tokenRef = useRef(null);
     const fetchedOnceRef = useRef(false);
+    const loginBufferRef = useRef(null); // ✅ Unity로 보낼 로그인 버퍼
 
     useEffect(() => {
         let unityInstance = null;
 
         /* =======================
-           401/502 에러 처리 로직
+           401/502 에러 처리 로직 (그대로)
         ======================= */
         const POPUP_COOLDOWN_MS = 3000;
         const REDIRECT_DELAY_MS = 800;
@@ -100,13 +101,13 @@ const UnityPlayer = () => {
         window.addEventListener('unhandledrejection', onUnhandledRejection);
 
         /* =======================
-           사진 API 호출
+           사진 API 호출 (토큰 필요)
         ======================= */
         async function fetchPhotosWithToken(jwt) {
             setIsPhotosLoading(true);
             setPhotosError("");
             try {
-                const res = await fetch("/api/s3photos", {
+                const res = await fetch("/unity/api/s3photos", {
                     headers: { "Authorization": `Bearer ${jwt}` }
                 });
                 if (!res.ok) {
@@ -126,17 +127,49 @@ const UnityPlayer = () => {
         }
 
         function tryFetchPhotos() {
+            // ❗ 토큰 없으면 호출하지 않음 (만료 팝업 방지)
             if (fetchedOnceRef.current) return;
             const local = localStorage.getItem("token");
             const jwt = tokenRef.current || local;
             if (jwt) fetchPhotosWithToken(jwt);
         }
 
-        // 최초 localStorage 토큰으로 시도
+        /* =======================
+           부모창 → LOGIN_INFO 수신 (✅ 추가/복구)
+           - tokenRef/로컬스토리지 저장
+           - Unity에 전달(ReceiveUserInfo)
+           - 사진 요청 트리거
+        ======================= */
+        const onMessage = (event) => {
+            if (event.data?.type === "LOGIN_INFO") {
+                const { user_id, token } = event.data;
+                tokenRef.current = token;
+                try { localStorage.setItem("token", token); } catch { }
+                loginBufferRef.current = { user_id, token };
+                trySendToUnity();      // Unity로 로그인 정보 전달
+                tryFetchPhotos();      // ✅ 토큰 수신 시점에 사진 요청
+            }
+        };
+        window.addEventListener("message", onMessage);
+
+        function trySendToUnity() {
+            if (unityInstanceRef.current && loginBufferRef.current) {
+                unityInstanceRef.current.SendMessage(
+                    "GameManager",
+                    "ReceiveUserInfo",
+                    JSON.stringify(loginBufferRef.current)
+                );
+                loginBufferRef.current = null;
+            } else {
+                setTimeout(trySendToUnity, 300);
+            }
+        }
+
+        // 최초에는 localStorage 토큰이 있으면 사용
         tryFetchPhotos();
 
         /* =======================
-           Unity 로더 스크립트 삽입
+           Unity 로더 스크립트 삽입 (그대로)
         ======================= */
         const script = document.createElement("script");
         script.src = "/garden/unity/Build/unity.loader.js";
@@ -155,16 +188,21 @@ const UnityPlayer = () => {
                         unityInstance = instance;
                         unityInstanceRef.current = instance;
                         setIsLoading(false);
+                        // 토큰이 이미 도착해 있었다면 Unity에 재전달 시도
+                        trySendToUnity();
                     })
                     .catch((err) => {
                         console.error("❌ Unity 인스턴스 생성 실패:", err);
                     });
+            } else {
+                console.error("❌ createUnityInstance가 없음 (스크립트 로드 실패)");
             }
         };
         document.body.appendChild(script);
 
         return () => {
             try { document.body.removeChild(script); } catch { }
+            window.removeEventListener("message", onMessage);
             window.removeEventListener('error', onWindowError);
             window.removeEventListener('unhandledrejection', onUnhandledRejection);
             if (typeof originalFetch === 'function') window.fetch = originalFetch;
@@ -175,7 +213,7 @@ const UnityPlayer = () => {
 
     return (
         <div style={{ margin: "15px auto" }}>
-            {/* ✅ wrapper만 가운데 정렬: 유니티만 가운데, 패널은 wrapper 내부에서 오른쪽에 절대배치 */}
+            {/* ✅ 유니티만 가운데 정렬되는 래퍼 */}
             <div
                 style={{
                     position: "relative",
@@ -213,14 +251,14 @@ const UnityPlayer = () => {
                     style={{ width: "100%", height: "100%", borderRadius: "16px", display: "block" }}
                 ></canvas>
 
-                {/* 🖼️ 우측 패널: 유니티 오른쪽에 '붙여놓기' (중앙정렬 대상 아님) */}
+                {/* 🖼️ 우측 패널: 유니티 오른쪽에 '붙여놓기' */}
                 <aside
                     style={{
                         position: "absolute",
                         top: 0,
-                        left: "calc(100% + 20px)",     // 유니티 우측으로 20px 간격
-                        height: "100%",                 // 유니티와 동일 높이
-                        width: "clamp(150px, 15vw, 20px)", // 반응형 폭
+                        left: "calc(100% + 20px)",           // 유니티 우측으로 20px 간격
+                        height: "100%",                       // 유니티와 동일 높이
+                        width: "clamp(150px, 15vw, 300px)",   // ✅ 반응형 폭(오타 수정: 최대 300px)
                         background: "#fff",
                         borderRadius: "12px",
                         boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
@@ -242,7 +280,7 @@ const UnityPlayer = () => {
                     >
                         {photos.map((p, i) => (
                             <div
-                                key={i}
+                                key={`${p.plant_id}-${i}`}
                                 style={{
                                     border: "1px solid #e5e7eb",
                                     borderRadius: "8px",
@@ -252,8 +290,9 @@ const UnityPlayer = () => {
                             >
                                 <img
                                     src={p.image_url}
-                                    alt="plant"
+                                    alt={`plant-${p.plant_id}`}
                                     style={{ width: "100%", height: "100px", objectFit: "cover", display: "block" }}
+                                    loading="lazy"
                                 />
                             </div>
                         ))}
