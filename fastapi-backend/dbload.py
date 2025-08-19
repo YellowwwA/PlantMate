@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List, Optional
 import mysql.connector
@@ -9,9 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request
 from fastapi import Depends, HTTPException
 from utils.jwt_utils import get_user_id_from_token  # 위에서 만든 함수 import
-from fastapi.responses import StreamingResponse
-import httpx
-from urllib.parse import urlparse
 
 # ✅ 환경변수 로드
 load_dotenv()
@@ -32,11 +29,6 @@ s3_client = boto3.client(
 
 # ✅ FastAPI 앱 생성
 app = FastAPI()
-
-ALLOWED_IMG_HOSTS = {
-    "kibwa-14.s3.ap-southeast-2.amazonaws.com",
-    # 필요시 다른 버킷/도메인 추가
-}
 
 # ✅ CORS 설정
 app.add_middleware(
@@ -73,8 +65,14 @@ class SaveItem(BaseModel):
     placenum: int            # 0 = 배치해제(인벤토리로)
     s3_key: Optional[str] = None  # 들어와도 무시
 
+# ✅ 추가된 부분: GET 요청에 대한 응답용 모델
+class PhotoListResponse(BaseModel):
+    photos: List[Photo]
+
+
 # ✅ JWT 기반으로 user_id 추출하여 사용
-@app.get("/api/s3photos", response_model=List[Photo])
+# ✅ 수정된 부분: response_model을 PhotoListResponse로 변경
+@app.get("/api/s3photos", response_model=PhotoListResponse)
 def get_s3_photos(request: Request, user_id: int = Depends(get_user_id_from_token)):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -111,13 +109,15 @@ def get_s3_photos(request: Request, user_id: int = Depends(get_user_id_from_toke
             "plant_id": r["plant_id"],
             "user_id": user_id,
             "placenum": r.get("placenum", 0),
-            "s3_key": "",             # 호환용(더이상 사용하지 않음)
-            "image_url": url          # https 링크 그대로 반환
+            "s3_key": "",           # 호환용(더이상 사용하지 않음)
+            "image_url": url        # https 링크 그대로 반환
         })
 
     cursor.close()
     conn.close()
-    return result
+    
+    # ✅ 수정된 부분: {"photos": ...} 형태로 감싸서 반환
+    return {"photos": result}
 
 
 @app.post("/api/save_placements")
