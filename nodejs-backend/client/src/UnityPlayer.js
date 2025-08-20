@@ -3,7 +3,6 @@ import React, { useEffect, useState, useRef } from 'react';
 const UnityPlayer = () => {
     // 원본 및 추가된 State와 Ref
     const [isLoading, setIsLoading] = useState(true);
-    const [showIntroVideo, setShowIntroVideo] = useState(true); // *** 1. 인트로 영상 표시 상태 추가 ***
     const [photos, setPhotos] = useState([]);
     const [isPhotosLoading, setIsPhotosLoading] = useState(false);
     const [photosError, setPhotosError] = useState("");
@@ -12,15 +11,11 @@ const UnityPlayer = () => {
     const fetchedOnceRef = useRef(false);
     const loginBufferRef = useRef(null);
 
-    // *** 2. 비디오 종료 시 호출될 핸들러 ***
-    const handleVideoEnd = () => {
-        setShowIntroVideo(false);
-    };
-
     useEffect(() => {
         /* =======================
-           401/502 에러 처리 로직 (기존 코드와 동일)
+            401/502 에러 처리 로직 (추가된 기능)
          ======================= */
+
         const POPUP_COOLDOWN_MS = 3000;
         const REDIRECT_DELAY_MS = 800;
         const LOGIN_PATH = "/login";
@@ -48,10 +43,15 @@ const UnityPlayer = () => {
             alert("⚠️ 서버가 일시적으로 응답하지 않습니다 (502 Bad Gateway).\n잠시 후 다시 시도해주세요.");
         };
 
+        const has401 = (txt) => !!txt && (/\b401\b/.test(String(txt)) || /unauthorized/i.test(String(txt)));
+        const has502 = (txt) => !!txt && (/\b502\b/.test(String(txt)) || /bad\s*gateway/i.test(String(txt)));
+
+        // fetch 훅킹
         const originalFetch = window.fetch;
         if (typeof originalFetch === 'function') {
             window.fetch = async (...args) => {
                 const res = await originalFetch(...args);
+                // '/images/' 경로는 프록시 요청이므로 에러 처리에서 제외
                 const isApiRequest = res.url.includes('/unity/api/') && !res.url.includes('/images/');
                 if (res && isApiRequest) {
                     if (res.status === 401) trigger401AndRedirect();
@@ -61,15 +61,15 @@ const UnityPlayer = () => {
             };
         }
 
-        // ... (XHR, console.error 등 다른 훅킹 로직은 생략)
-
+        // ... (XHR, console.error, 전역 에러 훅킹은 이전과 동일하게 유지)
         /* =======================
-           사진 API 호출 (기존 코드와 동일)
+            사진 API 호출 (✅ 서버 프록시 방식)
          ======================= */
         async function fetchPhotosWithToken(jwt) {
             setIsPhotosLoading(true);
             setPhotosError("");
             try {
+                // 이 API는 이제 { plant_id: 1, image_key: 'path/to/image.png' } 형태의 목록을 반환해야 합니다.
                 const res = await fetch("/unity/api/s3photos_for_react", {
                     headers: { "Authorization": `Bearer ${jwt}` }
                 });
@@ -87,8 +87,7 @@ const UnityPlayer = () => {
                 fetchedOnceRef.current = true;
             }
         }
-
-        // ... (tryFetchPhotos, onMessage, trySendToUnity 함수는 기존과 동일하게 유지)
+        // ... (tryFetchPhotos, onMessage, trySendToUnity 함수는 이전과 동일하게 유지)
         const onMessage = (event) => {
             if (event.data?.type === "LOGIN_INFO") {
                 const { user_id, token } = event.data;
@@ -100,7 +99,6 @@ const UnityPlayer = () => {
             }
         };
         window.addEventListener("message", onMessage);
-
         function trySendToUnity() {
             if (unityInstanceRef.current && loginBufferRef.current) {
                 unityInstanceRef.current.SendMessage(
@@ -120,13 +118,14 @@ const UnityPlayer = () => {
             const jwt = tokenRef.current || local;
             if (jwt) fetchPhotosWithToken(jwt);
         }
-
         tryFetchPhotos();
 
-
         /* =======================
-           Unity 로더 스크립트 삽입 (기존 코드와 동일)
+
+            Unity 로더 스크립트 삽입 (원본 코드)
+
          ======================= */
+
         const script = document.createElement("script");
         script.src = "/garden/unity/Build/unity.loader.js";
         script.async = true;
@@ -145,7 +144,7 @@ const UnityPlayer = () => {
                     .createUnityInstance(canvas, config)
                     .then((instance) => {
                         unityInstanceRef.current = instance;
-                        setIsLoading(false); // 유니티 로딩 완료!
+                        setIsLoading(false);
                         trySendToUnity();
                     })
                     .catch((err) => {
@@ -155,13 +154,14 @@ const UnityPlayer = () => {
                 console.error("❌ createUnityInstance가 없음 (스크립트 로드 실패)");
             }
         };
-
         document.body.appendChild(script);
 
         // 클린업 함수
+
         return () => {
             try { document.body.removeChild(script); } catch { }
             window.removeEventListener("message", onMessage);
+            // ... (다른 이벤트 리스너 및 훅 복원 코드)
             if (typeof originalFetch === 'function') window.fetch = originalFetch;
         };
     }, []);
@@ -177,32 +177,11 @@ const UnityPlayer = () => {
                     backgroundColor: "#fff",
                     borderRadius: "16px",
                     boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                    overflow: "hidden", // *** 자식 요소가 부모를 벗어나지 않도록 추가 ***
                 }}
             >
-                {/* *** 3. 조건부 렌더링 로직 수정 *** */}
 
-                {/* 인트로 영상 오버레이 */}
-                {showIntroVideo && (
-                    <div
-                        style={{
-                            position: "absolute", inset: 0, zIndex: 20, // 가장 위에 보이도록 zIndex 설정
-                            backgroundColor: "#000",
-                        }}
-                    >
-                        <video
-                            src="/videos/intro.mp4" // public 폴더 기준 경로
-                            autoPlay
-                            muted
-                            playsInline
-                            onEnded={handleVideoEnd}
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        />
-                    </div>
-                )}
-
-                {/* 로딩 오버레이 (영상이 끝나고, 아직 유니티 로딩 중일 때만 표시) */}
-                {!showIntroVideo && isLoading && (
+                {/* 로딩 오버레이 */}
+                {isLoading && (
                     <div
                         style={{
                             position: "absolute", inset: 0, display: "flex",
@@ -212,16 +191,17 @@ const UnityPlayer = () => {
                         }}
                     >
                         ⏳ Unity 로딩 중...
+
                     </div>
                 )}
 
-                {/* Unity Canvas (기존 코드와 동일) */}
+                {/* Unity Canvas */}
                 <canvas
                     id="unity-canvas"
                     style={{ width: "100%", height: "100%", borderRadius: "16px", display: "block" }}
                 ></canvas>
 
-                {/* 우측 패널 (기존 코드와 동일) */}
+                {/* 우측 패널 */}
                 <aside
                     style={{
                         position: "absolute", top: 0, left: "calc(100% + 20px)",
@@ -231,9 +211,12 @@ const UnityPlayer = () => {
                         padding: "10px", overflowY: "auto",
                     }}
                 >
+
                     <h3 style={{ fontSize: "15px", margin: "0 0 10px", color: "#2f3634" }}>내 식물 이미지</h3>
+
                     {isPhotosLoading && <div style={{ fontSize: 13, color: "#5e865f" }}>불러오는 중…</div>}
                     {!!photosError && <div style={{ fontSize: 12, color: "#b00020" }}>{photosError}</div>}
+
                     <div
                         style={{
                             display: "grid", gridTemplateColumns: "repeat(2, 1fr)",
@@ -249,6 +232,7 @@ const UnityPlayer = () => {
                                 }}
                             >
                                 <img
+                                    // ✅ FastAPI 프록시 엔드포인트를 통해 이미지 로드
                                     src={`/images/${p.image_key}`}
                                     alt={`plant-${p.plant_id}`}
                                     style={{ width: "100%", height: "100px", objectFit: "cover", display: "block" }}
