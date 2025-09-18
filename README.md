@@ -1,5 +1,6 @@
 # PlantMate
 
+
 ## 프로젝트 소개
 Plant Mate는 사용자가 업로드한 식물 사진과 환경 정보를 기반으로 AI가 식물을 식별·진단하고, 맞춤형 관리 가이드와 성장 리포트를 제공하는 통합 식물 관리 웹 서비스입니다.
 또한 식물 사진을 픽셀화해 메타버스 정원에 심는 기능을 통해 현실과 가상의 정원 관리 경험을 동시에 제공합니다.
@@ -15,4 +16,8 @@ Plant Mate는 사용자가 업로드한 식물 사진과 환경 정보를 기반
 
 ## 기술서
 + https://docs.google.com/document/d/1EkC4ctNMmx3QbvNhnJNnwFv1Y75BvKidGcH2JEdQvNM/edit?usp=sharing
+
+## 시연 영상
++ https://youtu.be/ErSh8TY42-o
+
 <img width="1903" height="855" alt="메인" src="https://github.com/user-attachments/assets/2f50ccc8-b53c-4a34-aa2f-bafe28704622" />
